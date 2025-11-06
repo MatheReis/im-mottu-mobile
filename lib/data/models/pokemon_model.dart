@@ -20,10 +20,16 @@ class Pokemon {
   });
 
   factory Pokemon.fromJson(Map<String, dynamic> json) {
+    String imageUrl = '';
+    final sprites = json['sprites'];
+    if (sprites != null) {
+      imageUrl = sprites['front_default'] ?? '';
+    }
+
     return Pokemon(
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
-      imageUrl: json['sprites']?['front_default'] ?? '',
+      imageUrl: imageUrl,
       height: json['height'] ?? 0,
       weight: json['weight'] ?? 0,
       types: (json['types'] as List<dynamic>?)
@@ -36,5 +42,18 @@ class Pokemon {
           [],
       baseExperience: json['base_experience'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'image_url': imageUrl,
+      'height': height,
+      'weight': weight,
+      'types': types,
+      'abilities': abilities,
+      'base_experience': baseExperience,
+    };
   }
 }
