@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:im_mottu_mobile/core/constants/app_routes.dart';
 import 'package:im_mottu_mobile/core/constants/contants.dart';
 
 class AppWidget extends StatelessWidget {
