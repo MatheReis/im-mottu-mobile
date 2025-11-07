@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:im_mottu_mobile/data/models/pokemon_model.dart';
 import 'package:im_mottu_mobile/core/constants/contants.dart';
 
-class ModernPokemonCard extends StatelessWidget {
+class PokemonCard extends StatelessWidget {
   final Pokemon pokemon;
   final int index;
   final VoidCallback onTap;
+  final void Function(String type)? onTypeTap;
 
-  const ModernPokemonCard({
+  const PokemonCard({
     super.key,
     required this.pokemon,
     required this.index,
     required this.onTap,
+    this.onTypeTap,
   });
 
   @override
@@ -50,6 +52,33 @@ class ModernPokemonCard extends StatelessWidget {
                       _buildPokemonNumber(),
                       const SizedBox(height: 4),
                       _buildPokemonName(),
+                      const SizedBox(height: 8),
+                      // Tipos como chips clicáveis
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: pokemon.types.map((t) {
+                          return GestureDetector(
+                            onTap: () => onTypeTap?.call(t),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                t[0].toUpperCase() + t.substring(1),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ],
                   ),
                   _buildPokemonImage(),

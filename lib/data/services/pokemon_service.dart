@@ -1,14 +1,28 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:im_mottu_mobile/core/constants/contants.dart';
+import 'package:im_mottu_mobile/services/cache_service.dart';
 import '../models/pokemon_model.dart';
 
 class PokemonService {
   final Dio _dio;
+  final CacheService _cache = CacheService();
 
   PokemonService(this._dio, {Dio? dio});
 
   Future<List<Pokemon>> fetchPokemons({int limit = 20, int offset = 0}) async {
+    final cacheKey = 'pokemons_limit_${limit}_offset_$offset';
+    try {
+      final cached =
+          await _cache.getJson(cacheKey, maxAge: const Duration(minutes: 10));
+      if (cached != null) {
+        final results = (cached as List).cast<Map<String, dynamic>>();
+        final futures = results.map((json) async => Pokemon.fromJson(json));
+        final list = await Future.wait(futures);
+        return list;
+      }
+    } catch (_) {}
+
     try {
       const url = '${Api.baseUrl}${ApiRoutes.pokemon}';
       final response = await _dio.get(
@@ -40,6 +54,11 @@ class PokemonService {
             .cast<Pokemon>()
             .toList();
 
+        try {
+          final jsonList = result.map((p) => p.toJson()).toList();
+          await _cache.setJson(cacheKey, jsonList);
+        } catch (_) {}
+
         return result;
       } else {
         throw 'Erro ao carregar lista de Pokémons';
@@ -52,12 +71,25 @@ class PokemonService {
   }
 
   Future<Pokemon> fetchPokemonById(String id) async {
+    final cacheKey = 'pokemon_id_$id';
+    try {
+      final cached =
+          await _cache.getJson(cacheKey, maxAge: const Duration(hours: 1));
+      if (cached != null) {
+        return Pokemon.fromJson(cached as Map<String, dynamic>);
+      }
+    } catch (_) {}
+
     try {
       final url = '${Api.baseUrl}${ApiRoutes.pokemon}/$id';
       final response = await _dio.get(url);
 
       if (response.statusCode == 200) {
         final pokemon = Pokemon.fromJson(response.data);
+
+        try {
+          await _cache.setJson(cacheKey, response.data);
+        } catch (_) {}
 
         return pokemon;
       } else if (response.statusCode == 404) {
@@ -74,6 +106,18 @@ class PokemonService {
   }
 
   Future<List<Pokemon>> fetchPokemonsByType(String type) async {
+    final cacheKey = 'pokemon_type_$type';
+    try {
+      final cached =
+          await _cache.getJson(cacheKey, maxAge: const Duration(minutes: 30));
+      if (cached != null) {
+        final results = (cached as List).cast<Map<String, dynamic>>();
+        final futures = results.map((json) async => Pokemon.fromJson(json));
+        final list = await Future.wait(futures);
+        return list;
+      }
+    } catch (_) {}
+
     try {
       final url = '${Api.baseUrl}${ApiRoutes.pokemonType}/$type';
       final response = await _dio.get(url);
@@ -94,10 +138,17 @@ class PokemonService {
         });
 
         final results = await Future.wait(futures);
-        return results
+        final list = results
             .where((pokemon) => pokemon != null)
             .cast<Pokemon>()
             .toList();
+
+        try {
+          final jsonList = list.map((p) => p.toJson()).toList();
+          await _cache.setJson(cacheKey, jsonList);
+        } catch (_) {}
+
+        return list;
       } else {
         throw "";
       }
