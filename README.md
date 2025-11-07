@@ -1,5 +1,7 @@
 # 🧪 I'm Mottu Mobile — Teste prático Flutter com PokeAPI
 
+<img src="https://github.com/user-attachments/assets/8c13aff6-399a-4d13-a8f9-672cd289a277" alt="IMG_2432" width="300"/>
+
 ## Funcionalidades implementadas
 
 - Splash screen customizada com animação e logo
