@@ -1,18 +1,57 @@
+import 'package:get/get.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:im_mottu_mobile/data/models/pokemon_model.dart';
+import 'package:im_mottu_mobile/core/constants/app_colors.dart';
 import 'package:im_mottu_mobile/core/constants/contants.dart';
-import 'package:im_mottu_mobile/views/widgets/background_decorations.dart';
+import 'package:im_mottu_mobile/data/models/pokemon_model.dart';
+import 'package:im_mottu_mobile/data/services/pokemon_service.dart';
 
-class PokemonDetailPage extends StatelessWidget {
+class PokemonDetailPage extends StatefulWidget {
   final Pokemon pokemon;
 
   const PokemonDetailPage({super.key, required this.pokemon});
+
+  @override
+  State<PokemonDetailPage> createState() => _PokemonDetailPageState();
+}
+
+class _PokemonDetailPageState extends State<PokemonDetailPage> {
+  final PokemonService _service = PokemonService(Dio());
+
+  Pokemon get pokemon => widget.pokemon;
+
+  Future<void> _openListByType(String type) async {
+    Get.dialog(
+      Center(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const CircularProgressIndicator(),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    try {
+      final list = await _service.fetchPokemonsByType(type);
+      Get.back();
+      Get.toNamed('/pokemon_by_filter',
+          arguments: {'title': type, 'list': list});
+    } catch (e) {
+      Get.back();
+      Get.snackbar('Erro', 'Não foi possível carregar pokémons do tipo $type');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final gradientColors = _getGradientColors(pokemon.id);
 
     return Scaffold(
+      backgroundColor: AppColors.secundary,
       body: CustomScrollView(
         slivers: [
           _buildSliverAppBar(context, gradientColors),
@@ -26,110 +65,166 @@ class PokemonDetailPage extends StatelessWidget {
 
   Widget _buildSliverAppBar(BuildContext context, List<Color> gradientColors) {
     return SliverAppBar(
-      expandedHeight: 300,
+      expandedHeight: 320,
       pinned: true,
-      backgroundColor: gradientColors[0],
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
+      backgroundColor: AppColors.surface,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: gradientColors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surface,
+                AppColors.cardBackground,
+              ],
             ),
           ),
           child: Stack(
             children: [
-              const BackgroundDecorations(),
+              // Efeitos de fundo
+              Positioned(
+                top: -50,
+                right: -50,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.primary.withOpacity(0.15),
+                        AppColors.primary.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -100,
+                left: -100,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.primaryDarkGreen.withOpacity(0.1),
+                        AppColors.primaryDarkGreen.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Conteúdo
               Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 60),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        '#${pokemon.id.toString().padLeft(3, '0')}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      pokemon.name.isNotEmpty
-                          ? pokemon.name[0].toUpperCase() +
-                              pokemon.name.substring(1)
-                          : pokemon.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(2, 2),
-                            blurRadius: 8,
-                            color: Colors.black26,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Hero(
-                      tag: 'pokemon_${pokemon.id}',
-                      child: Container(
-                        width: 140,
-                        height: 140,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 80),
+
+                      // Badge do ID
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.15),
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primaryDarkGreen
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                              color: AppColors.primary.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: ClipOval(
-                          child: pokemon.imageUrl.isNotEmpty
-                              ? Image.network(
-                                  pokemon.imageUrl,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
-                                      Icons.catching_pokemon,
-                                      color: Colors.white,
-                                      size: 70,
-                                    );
-                                  },
-                                )
-                              : const Icon(
-                                  Icons.catching_pokemon,
-                                  color: Colors.white,
-                                  size: 70,
-                                ),
+                        child: Text(
+                          '#${pokemon.id.toString().padLeft(3, '0')}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 16),
+
+                      // Nome do Pokémon
+                      Text(
+                        pokemon.name.isNotEmpty
+                            ? pokemon.name[0].toUpperCase() +
+                                pokemon.name.substring(1)
+                            : pokemon.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(0, 2),
+                              blurRadius: 12,
+                              color: Colors.black38,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Imagem do Pokémon
+                      Hero(
+                        tag: 'pokemon_${pokemon.id}',
+                        child: SizedBox(
+                          width: 160,
+                          height: 160,
+                          child: Container(
+                            margin: const EdgeInsets.all(8),
+                            child: pokemon.imageUrl.isNotEmpty
+                                ? Image.network(
+                                    pokemon.imageUrl,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.catching_pokemon,
+                                        color: AppColors.primary,
+                                        size: 60,
+                                      );
+                                    },
+                                  )
+                                : const Icon(
+                                    Icons.catching_pokemon,
+                                    color: AppColors.primary,
+                                    size: 80,
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -141,18 +236,18 @@ class PokemonDetailPage extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     return Container(
-      color: const Color(0xFFF8F9FA),
+      color: AppColors.secundary,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildTypesSection(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             _buildStatsSection(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             _buildAbilitiesSection(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             _buildExperienceSection(),
             const SizedBox(height: 40),
           ],
@@ -167,43 +262,65 @@ class PokemonDetailPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Tipos',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D3436),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 24,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDarkGreen],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'TIPOS',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Wrap(
           spacing: 12,
-          runSpacing: 8,
+          runSpacing: 12,
           children: pokemon.types.map((type) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: _getTypeGradient(type),
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: _getTypeGradient(type)[0].withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+            return GestureDetector(
+              onTap: () => _openListByType(type),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _getTypeGradient(type),
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
-              ),
-              child: Text(
-                type.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getTypeGradient(type)[0].withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  type.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ),
             );
@@ -217,13 +334,31 @@ class PokemonDetailPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Estatísticas',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D3436),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 24,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDarkGreen],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'ESTATÍSTICAS',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Row(
@@ -233,7 +368,7 @@ class PokemonDetailPage extends StatelessWidget {
                 'Altura',
                 '${(pokemon.height / 10).toStringAsFixed(1)} m',
                 Icons.height,
-                const Color(0xFF74B9FF),
+                AppColors.primary,
               ),
             ),
             const SizedBox(width: 16),
@@ -242,7 +377,7 @@ class PokemonDetailPage extends StatelessWidget {
                 'Peso',
                 '${(pokemon.weight / 10).toStringAsFixed(1)} kg',
                 Icons.fitness_center,
-                const Color(0xFF00B894),
+                AppColors.primaryDarkGreen,
               ),
             ),
           ],
@@ -256,12 +391,16 @@ class PokemonDetailPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: color.withOpacity(0.1),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -269,34 +408,37 @@ class PokemonDetailPage extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
               color: color,
-              size: 24,
+              size: 26,
             ),
           ),
           const SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
               color: color,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            label,
+            label.toUpperCase(),
             style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+              fontSize: 11,
+              color: Colors.white.withOpacity(0.5),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
             ),
           ),
         ],
@@ -310,51 +452,81 @@ class PokemonDetailPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Habilidades',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D3436),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 24,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDarkGreen],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'HABILIDADES',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.2),
+              width: 1,
+            ),
           ),
           child: Wrap(
             spacing: 12,
-            runSpacing: 8,
+            runSpacing: 12,
             children: pokemon.abilities.map((ability) {
               return Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: const Color(0xFF6C5CE7).withOpacity(0.2),
+                    color: AppColors.primary.withOpacity(0.3),
                     width: 1,
                   ),
                 ),
-                child: Text(
-                  ability[0].toUpperCase() + ability.substring(1),
-                  style: const TextStyle(
-                    color: Color(0xFF6C5CE7),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      ability[0].toUpperCase() + ability.substring(1),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               );
             }).toList(),
@@ -368,13 +540,31 @@ class PokemonDetailPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Experiência Base',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D3436),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 24,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDarkGreen],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'EXPERIÊNCIA BASE',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Container(
@@ -382,32 +572,36 @@ class PokemonDetailPage extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFFD93D), Color(0xFFFF6B6B)],
+              colors: [AppColors.primary, AppColors.primaryDarkGreen],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFFD93D).withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+                color: AppColors.primary.withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 2,
+                  ),
                 ),
                 child: const Icon(
                   Icons.star,
                   color: Colors.white,
-                  size: 28,
+                  size: 30,
                 ),
               ),
               const SizedBox(width: 20),
@@ -419,16 +613,9 @@ class PokemonDetailPage extends StatelessWidget {
                       '${pokemon.baseExperience} XP',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const Text(
-                      'Experiência obtida ao derrotar',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ],

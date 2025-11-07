@@ -1,10 +1,16 @@
+import 'dart:async';
+import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:im_mottu_mobile/core/constants/contants.dart';
+import 'package:im_mottu_mobile/core/constants/app_colors.dart';
 import 'package:im_mottu_mobile/data/models/pokemon_model.dart';
-import 'package:im_mottu_mobile/data/services/pokemon_service.dart';
-import 'package:im_mottu_mobile/views/pokemon_details_page.dart';
 import 'package:im_mottu_mobile/views/widgets/pokemon_card.dart';
+import 'package:im_mottu_mobile/views/pokemon_details_page.dart';
+import 'package:im_mottu_mobile/data/services/pokemon_service.dart';
+import 'package:im_mottu_mobile/views/widgets/search_bar_widget.dart';
+import 'package:im_mottu_mobile/views/widgets/loading_state_widget.dart';
+import 'package:im_mottu_mobile/views/widgets/error_state_widget.dart';
 
 class PokemonPage extends StatefulWidget {
   const PokemonPage({super.key});
@@ -16,13 +22,19 @@ class PokemonPage extends StatefulWidget {
 class _PokemonPageState extends State<PokemonPage> {
   final PokemonService _service = PokemonService(Dio());
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounceTimer;
 
-  List<Pokemon> _allPokemons = [];
+  final List<Pokemon> _allPokemons = [];
   List<Pokemon> _filteredPokemons = [];
   bool _isLoading = false;
   bool _isSearching = false;
   bool _hasError = false;
   String _searchQuery = '';
+
+  final int _pageSize = 20;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -30,30 +42,51 @@ class _PokemonPageState extends State<PokemonPage> {
     _loadPokemons();
 
     _searchController.addListener(() {
+      _debounceTimer?.cancel();
       setState(() {
+        _isSearching = true;
         _searchQuery = _searchController.text;
+      });
+      _debounceTimer = Timer(const Duration(milliseconds: 450), () {
         _performSearch();
+        if (mounted) setState(() => _isSearching = false);
       });
     });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-
+    _debounceTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadPokemons() async {
+  void _navigateToPokemonDetails(Pokemon pokemon) =>
+      Get.to(() => PokemonDetailPage(pokemon: pokemon));
+
+  Future<void> _loadPokemons({bool refresh = false}) async {
+    if (refresh) {
+      _allPokemons.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
 
     try {
-      final pokemons = await _service.fetchPokemons();
+      final pokemons = await _service.fetchPokemons(
+        limit: _pageSize,
+        offset: _allPokemons.length,
+      );
       setState(() {
-        _allPokemons = pokemons;
+        _allPokemons.addAll(pokemons);
+        if (pokemons.length < _pageSize) _hasMore = false;
         _updateFilteredList();
       });
     } catch (e) {
@@ -63,6 +96,7 @@ class _PokemonPageState extends State<PokemonPage> {
     } finally {
       setState(() {
         _isLoading = false;
+        _isLoadingMore = false;
       });
     }
   }
@@ -75,10 +109,6 @@ class _PokemonPageState extends State<PokemonPage> {
       return;
     }
 
-    setState(() {
-      _isSearching = true;
-    });
-
     final localResults = _allPokemons
         .where((pokemon) =>
             pokemon.name.toLowerCase().contains(query.toLowerCase()))
@@ -86,7 +116,6 @@ class _PokemonPageState extends State<PokemonPage> {
 
     setState(() {
       _filteredPokemons = localResults;
-      _isSearching = false;
     });
   }
 
@@ -110,14 +139,30 @@ class _PokemonPageState extends State<PokemonPage> {
     });
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _isLoadingMore = true;
+      _loadPokemons();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.secundary,
+      extendBodyBehindAppBar: false,
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          _buildSearchBar(),
+          SearchBarWidget(
+            controller: _searchController,
+            isSearching: _isSearching,
+            searchQuery: _searchQuery,
+            onClear: _clearSearch,
+          ),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -126,176 +171,85 @@ class _PokemonPageState extends State<PokemonPage> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text(
-        'PokéDex',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'POKÉDEX',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
       ),
       backgroundColor: AppColors.surface,
-      foregroundColor: AppColors.textPrimary,
+      foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
       actions: [
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
-          onSelected: (value) {
-            if (value == 'refresh') {
-              _loadPokemons();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'refresh',
-              child: Row(
-                children: [
-                  Icon(Icons.refresh),
-                  SizedBox(width: 8),
-                  Text('Atualizar'),
-                ],
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            color: AppColors.cardBackground,
+            onSelected: (value) {
+              if (value == 'refresh') {
+                _loadPokemons();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, color: AppColors.primary, size: 20),
+                    SizedBox(width: 12),
+                    Text(
+                      'Atualizar',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar Pokemon',
-          hintStyle: const TextStyle(color: AppColors.textSecondary),
-          prefixIcon: _isSearching
-              ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              : const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: _clearSearch,
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBody() {
     if (_isLoading) {
-      return _buildLoadingState();
+      return const LoadingStateWidget();
     }
     if (_hasError) {
-      return _buildErrorState();
+      return ErrorStateWidget(onRetry: () => _loadPokemons());
     }
     return _buildPokemonGrid();
-  }
-
-  Widget _buildLoadingState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 3,
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Carregando Pokemons...',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: AppColors.error,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Ops! Algo deu errado',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Não foi possível carregar os Pokémons',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadPokemons,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar Novamente'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.surface,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildPokemonGrid() {
@@ -308,8 +262,13 @@ class _PokemonPageState extends State<PokemonPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadPokemons,
+      onRefresh: () => _loadPokemons(refresh: true),
+      color: AppColors.primary,
+      backgroundColor: AppColors.surface,
       child: GridView.builder(
+        key: const PageStorageKey('pokemonGrid'),
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
@@ -317,10 +276,24 @@ class _PokemonPageState extends State<PokemonPage> {
           mainAxisSpacing: 16,
           childAspectRatio: 0.85,
         ),
-        itemCount: _filteredPokemons.length,
+        itemCount: _filteredPokemons.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index >= _filteredPokemons.length) {
+            return const SizedBox(
+              height: 140,
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            );
+          }
+
           final pokemon = _filteredPokemons[index];
-          return ModernPokemonCard(
+          return PokemonCard(
             pokemon: pokemon,
             index: index,
             onTap: () => _navigateToPokemonDetails(pokemon),
@@ -331,22 +304,41 @@ class _PokemonPageState extends State<PokemonPage> {
   }
 
   Widget _buildEmptySearchState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.search_off,
-            size: 64,
-            color: AppColors.textSecondary,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.2),
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              Icons.search_off,
+              size: 64,
+              color: Colors.white.withOpacity(0.4),
+            ),
           ),
-          SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 20),
+          const Text(
             'Nenhum Pokémon encontrado',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tente buscar com outro nome',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.4),
             ),
           ),
         ],
@@ -355,34 +347,36 @@ class _PokemonPageState extends State<PokemonPage> {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.catching_pokemon,
-            size: 64,
-            color: AppColors.textSecondary,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.2),
+                width: 2,
+              ),
+            ),
+            child: const Icon(
+              Icons.catching_pokemon,
+              size: 64,
+              color: AppColors.primary,
+            ),
           ),
-          SizedBox(height: 16),
-          Text(
-            'Nenhum Pokémon encontrado',
+          const SizedBox(height: 20),
+          const Text(
+            'Nenhum Pokémon disponível',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: Colors.white70,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _navigateToPokemonDetails(Pokemon pokemon) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PokemonDetailPage(pokemon: pokemon),
       ),
     );
   }
