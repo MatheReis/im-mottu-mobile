@@ -153,15 +153,11 @@ class PokemonCard extends StatelessWidget {
                   },
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 2,
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+                    return const Center(
+                      child: Icon(
+                        Icons.catching_pokemon,
+                        color: Colors.white54,
+                        size: 35,
                       ),
                     );
                   },

@@ -25,8 +25,7 @@ class AppController extends GetxController with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    if (state == AppLifecycleState.detached ||
-        state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.detached) {
       clearCache();
     }
   }

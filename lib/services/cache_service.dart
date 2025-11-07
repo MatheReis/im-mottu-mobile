@@ -13,12 +13,15 @@ class CacheService {
 
   Future<Directory> _getCacheDir() async {
     if (_cacheDir != null) return _cacheDir!;
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await getApplicationSupportDirectory();
     final dir = Directory('${appDir.path}/cache');
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
     _cacheDir = dir;
+    if (kDebugMode) {
+      print('Cache directory: ${_cacheDir!.path}');
+    }
     return _cacheDir!;
   }
 
@@ -60,13 +63,16 @@ class CacheService {
       if (maxAge != null) {
         if (DateTime.now().difference(ts) > maxAge) {
           try {
-            await file.delete();
+            if (kDebugMode) {
+              print('Cache expirado: $key');
+            }
           } catch (_) {}
           return null;
         }
       }
       return obj['data'];
     } catch (e) {
+      if (kDebugMode) print('Erro ao ler cache: $e');
       return null;
     }
   }

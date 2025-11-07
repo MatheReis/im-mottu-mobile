@@ -53,7 +53,6 @@ class PokemonService {
             .where((pokemon) => pokemon != null)
             .cast<Pokemon>()
             .toList();
-
         try {
           final jsonList = result.map((p) => p.toJson()).toList();
           await _cache.setJson(cacheKey, jsonList);
@@ -64,6 +63,16 @@ class PokemonService {
         throw 'Erro ao carregar lista de Pokémons';
       }
     } on DioException catch (e) {
+      try {
+        final cached = await _cache.getJson(cacheKey);
+        if (cached != null) {
+          final results = (cached as List).cast<Map<String, dynamic>>();
+          final futures = results.map((json) async => Pokemon.fromJson(json));
+          final list = await Future.wait(futures);
+          return list;
+        }
+      } catch (_) {}
+
       throw "Erro ao carregar Pokémons $e";
     } catch (e) {
       throw 'Erro inesperado ao processar dados: $e';
@@ -97,6 +106,17 @@ class PokemonService {
       } else {
         throw 'Erro ao carregar Pokémon "$id"';
       }
+    } on DioException catch (e) {
+      try {
+        final cached = await _cache.getJson(cacheKey);
+        if (cached != null) {
+          return Pokemon.fromJson(cached as Map<String, dynamic>);
+        }
+      } catch (_) {}
+      throw (
+        'Erro inesperado ao processar dados do Pokémon: $e',
+        originalError: e
+      );
     } catch (e) {
       throw (
         'Erro inesperado ao processar dados do Pokémon: $e',
@@ -153,6 +173,16 @@ class PokemonService {
         throw "";
       }
     } on DioException catch (e) {
+      try {
+        final cached = await _cache.getJson(cacheKey);
+        if (cached != null) {
+          final results = (cached as List).cast<Map<String, dynamic>>();
+          final futures = results.map((json) async => Pokemon.fromJson(json));
+          final list = await Future.wait(futures);
+          return list;
+        }
+      } catch (_) {}
+
       throw "Erro ao carregar Pokémons $e";
     } catch (e) {
       throw 'Erro inesperado ao processar Pokémons do tipo "$type": $e';

@@ -6,4 +6,5 @@ class ConnectivityController extends GetxController {
   ConnectivityController(this._native);
 
   RxBool get isConnected => _native.isConnected;
+  RxBool get isReady => _native.isReady;
 }

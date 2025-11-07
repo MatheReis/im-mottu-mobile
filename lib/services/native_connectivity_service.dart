@@ -7,6 +7,7 @@ class NativeConnectivityService extends GetxService {
   static const _channel = EventChannel('im_mottu/connectivity');
 
   final isConnected = true.obs;
+  final isReady = false.obs;
   StreamSubscription? _sub;
 
   Future<NativeConnectivityService> init() async {
@@ -19,6 +20,9 @@ class NativeConnectivityService extends GetxService {
         print('Native connectivity error: $err');
       }
     });
+
+    await Future.delayed(const Duration(milliseconds: 250));
+    isReady.value = true;
     return this;
   }
 

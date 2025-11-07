@@ -23,13 +23,11 @@ class MainActivity: FlutterActivity() {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 if (events == null) return
 
-                // Envia estado inicial
                 val isConnected = isCurrentlyConnected()
                 runOnUiThread {
                     events.success(isConnected)
                 }
 
-                // Registra callback para mudanças
                 networkCallback = object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
                         runOnUiThread { events.success(true) }
@@ -59,7 +57,7 @@ class MainActivity: FlutterActivity() {
                         networkCallback = null
                     }
                 } catch (e: Exception) {
-                    // ignore
+                   
                 }
             }
         })

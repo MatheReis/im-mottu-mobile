@@ -11,11 +11,12 @@ Future<void> main() async {
   final appController = AppController();
   Get.put(appController);
 
-  initializeConnectivity();
+  await initializeConnectivity();
+
   runApp(const AppWidget());
 }
 
-void initializeConnectivity() async {
+Future<void> initializeConnectivity() async {
   final nativeConn = await NativeConnectivityService().init();
   Get.put<NativeConnectivityService>(nativeConn);
   Get.put(ConnectivityController(nativeConn));

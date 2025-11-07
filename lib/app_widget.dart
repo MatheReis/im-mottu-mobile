@@ -40,7 +40,7 @@ class AppWidget extends StatelessWidget {
           return Stack(
             children: [
               child!,
-              if (!conn.isConnected.value)
+              if (conn.isReady.value && !conn.isConnected.value)
                 Positioned(
                   left: 16,
                   right: 16,

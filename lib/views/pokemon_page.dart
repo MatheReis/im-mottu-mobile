@@ -279,17 +279,7 @@ class _PokemonPageState extends State<PokemonPage> {
         itemCount: _filteredPokemons.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= _filteredPokemons.length) {
-            return const SizedBox(
-              height: 140,
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            );
+            return const SizedBox();
           }
 
           final pokemon = _filteredPokemons[index];
